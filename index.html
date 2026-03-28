@@ -206,8 +206,11 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
         <button type="button" class="btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="snapToLastDay()">Monatsende</button>
       </div>
     </div>
-    <div class="field"><label>Lagerort</label><input type="text" id="f-location" list="loc-list" placeholder="z.B. Kuehlschrank, Keller...">
-      <datalist id="loc-list"></datalist></div>
+    <div class="field"><label>Lagerort</label><select id="f-location">
+      <option value="Vorratsschrank">Vorratsschrank</option>
+      <option value="Kuehlschrank">Kuehlschrank</option>
+      <option value="Keller">Keller</option>
+    </select></div>
     <div class="field"><label>Notiz</label><textarea id="f-note" rows="2"></textarea></div>
     <div class="field"><label>Bild-URL</label><input type="url" id="f-image" placeholder="https://..."></div>
     <div class="modal-actions">
@@ -266,6 +269,7 @@ let qtyTemp = 1;
 let duplicateBarcode = '';
 let duplicateExistingId = '';
 let scannerRunning = false;
+let lastLocation = 'Vorratsschrank';
 
 const LS_KEY = 'haushalts_lager_v1';
 
@@ -445,11 +449,7 @@ function snapToLastDay() {
   input.value = `${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
 }
 
-/* ── Datalists ── */
-function updateDataLists() {
-  const locs = [...new Set(inventory.map(i=>i.location).filter(Boolean))];
-  document.getElementById('loc-list').innerHTML = locs.map(l=>`<option value="${esc(l)}">`).join('');
-}
+/* ── (datalists removed) ── */
 
 /* ── Modal helpers ── */
 function openModal(id) {
@@ -470,10 +470,9 @@ function openProductForm(data) {
   document.getElementById('f-quantity').value = (data && data.quantity != null) ? data.quantity : 1;
   document.getElementById('f-unit').value = (data && data.unit) || 'Stueck';
   document.getElementById('f-expiry').value = (data && data.expiry) || '';
-  document.getElementById('f-location').value = (data && data.location) || '';
+  document.getElementById('f-location').value = (data && data.location) || lastLocation;
   document.getElementById('f-note').value = (data && data.note) || '';
   document.getElementById('f-image').value = (data && data.image) || '';
-  updateDataLists();
   openModal('product-modal');
 }
 
@@ -497,12 +496,13 @@ function saveProduct() {
     quantity: parseFloat(document.getElementById('f-quantity').value) || 1,
     unit: document.getElementById('f-unit').value,
     expiry: document.getElementById('f-expiry').value || '',
-    location: document.getElementById('f-location').value.trim(),
+    location: document.getElementById('f-location').value,
     note: document.getElementById('f-note').value.trim(),
     image: document.getElementById('f-image').value.trim(),
     createdAt: editingId ? (inventory.find(i=>i.id===editingId)||{}).createdAt || now : now,
     updatedAt: now
   };
+  lastLocation = data.location || lastLocation;
   if (editingId) {
     const idx = inventory.findIndex(i => i.id === editingId);
     if (idx >= 0) inventory[idx] = data;
