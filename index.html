@@ -152,7 +152,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 </head>
 <body>
 
-<div class="header"><h1>Haushalts-Lager</h1></div>
+<div class="header"><h1>Haushalts-Lager <span id="item-count"></span></h1></div>
 
 <div class="toolbar">
   <button class="btn-success" onclick="openProductForm()">+ Neu</button>
@@ -414,6 +414,7 @@ function filterInventory() {
 function renderInventoryList() {
   const list = document.getElementById('inventory-list');
   const items = filterInventory();
+  document.getElementById('item-count').textContent = `(${items.length})`;
   if (items.length === 0) {
     list.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>Keine Produkte gefunden.</p></div>';
     return;
