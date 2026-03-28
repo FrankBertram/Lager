@@ -153,7 +153,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 <body>
 
 <div class="header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
-  <h1 style="font-size:1.1rem">Haushaltslager V1.3 <span id="item-count"></span></h1>
+  <h1 style="font-size:1.1rem">Haushaltslager V1.4 <span id="item-count"></span></h1>
   <button style="margin:0;padding:4px 28px;background:#fff;color:var(--primary);border:none;border-radius:8px;display:flex;align-items:center" onclick="startScanner()"><svg width="28" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3h3M3 3v3M21 3h-3M21 3v3M3 21h3M3 21v-3M21 21h-3M21 21v-3"/><path stroke-width="2.5" d="M7 7v10M10 7v10M14 7v10M17 7v10"/></svg></button>
 </div>
 
@@ -428,7 +428,7 @@ function renderInventoryList() {
     const cls = isCompact ? `card compact ${status}` : `card ${status}`;
     if (isCompact) {
       return `<div class="${cls}">
-        <div class="card-body">
+        <div class="card-body" onclick="openEditForm('${item.id}')" style="cursor:pointer">
           <div class="card-info">
             <span class="card-name">${esc(item.name)}</span>
             <span class="badge badge-muted">${esc(String(item.quantity))} ${esc(item.unit)}</span>
@@ -436,8 +436,8 @@ function renderInventoryList() {
           </div>
         </div>
         <div class="card-actions">
-          <button class="btn-primary btn-sm" onclick="openQtyModal('${item.id}')">±</button>
-          <button class="btn-outline btn-sm" onclick="openEditForm('${item.id}')">✎</button>
+          <button class="btn-danger btn-sm" onclick="quickQty('${item.id}',-1)">−</button>
+          <button class="btn-primary btn-sm" onclick="quickQty('${item.id}',1)">+</button>
         </div>
       </div>`;
     }
@@ -445,7 +445,7 @@ function renderInventoryList() {
       ? `<img class="card-thumb" src="${esc(item.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`
       : '';
     return `<div class="${cls}">
-      <div class="card-body">
+      <div class="card-body" onclick="openEditForm('${item.id}')" style="cursor:pointer">
         ${thumb}
         <div class="card-info">
           <div class="card-row1">
@@ -460,8 +460,8 @@ function renderInventoryList() {
         </div>
       </div>
       <div class="card-actions">
-        <button class="btn-primary btn-sm" onclick="openQtyModal('${item.id}')">±</button>
-        <button class="btn-outline btn-sm" onclick="openEditForm('${item.id}')">✎</button>
+        <button class="btn-danger btn-sm" onclick="quickQty('${item.id}',-1)">−</button>
+        <button class="btn-primary btn-sm" onclick="quickQty('${item.id}',1)">+</button>
       </div>
     </div>`;
   }).join('');
@@ -592,6 +592,24 @@ function setQtyFromInput() {
     qtyTemp = v;
     document.getElementById('qty-display').textContent = qtyTemp;
   }
+}
+
+function quickQty(id, delta) {
+  const item = inventory.find(i => i.id === id);
+  if (!item) return;
+  const newQty = item.quantity + delta;
+  if (newQty <= 0) {
+    if (!confirm(`"${item.name}" entfernen (Menge = 0)?`)) return;
+    inventory = inventory.filter(i => i.id !== id);
+    saveToLocalStorage();
+    renderInventoryList();
+    toast('Artikel entfernt', 'info');
+    return;
+  }
+  item.quantity = newQty;
+  item.updatedAt = new Date().toISOString();
+  saveToLocalStorage();
+  renderInventoryList();
 }
 
 function updateQuantity(id, newQty) {
