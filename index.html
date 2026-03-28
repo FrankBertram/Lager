@@ -640,7 +640,7 @@ async function fetchProductByBarcode(barcode) {
     const p = data.product;
     return {
       barcode,
-      name: p.product_name || p.product_name_de || '',
+      name: p.product_name_de || p.product_name || '',
       brand: p.brands || '',
       image: p.image_front_small_url || p.image_url || '',
       quantity_text: p.quantity || ''
@@ -666,6 +666,7 @@ async function lookupBarcode() {
       document.getElementById('f-image-field').style.display = '';
     }
     toast('Produktdaten uebernommen!', 'success');
+    setTimeout(() => { document.getElementById('f-expiry').showPicker?.(); document.getElementById('f-expiry').focus(); }, 300);
   } else {
     toast('Kein Treffer - bitte manuell eingeben', 'info');
   }
@@ -775,6 +776,9 @@ async function handleScannedBarcode(barcode) {
     toast('Kein Treffer - bitte manuell eingeben', 'info');
   }
   openProductForm(formData);
+  if (offData) {
+    setTimeout(() => { document.getElementById('f-expiry').showPicker?.(); document.getElementById('f-expiry').focus(); }, 400);
+  }
 }
 
 async function dupAction(action) {
