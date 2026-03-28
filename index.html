@@ -155,8 +155,8 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 <div class="header"><h1>Haushalts-Lager</h1></div>
 
 <div class="toolbar">
-  <button class="btn-primary" onclick="startScanner()">Scannen</button>
   <button class="btn-success" onclick="openProductForm()">+ Neu</button>
+  <button class="btn-primary" onclick="startScanner()">Scannen</button>
   <button class="btn-outline" onclick="exportJson()">JSON</button>
   <button class="btn-outline" onclick="exportCsv()">CSV</button>
   <button class="btn-outline" onclick="document.getElementById('import-input').click()">Import</button>
@@ -169,24 +169,25 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 
 <div class="control-bar">
   <select id="filter-select" onchange="currentFilter=this.value;renderInventoryList()">
-    <option value="all">Alle</option>
-    <option value="expiring">Bald ablaufend</option>
-    <option value="expired">Abgelaufen</option>
-    <option value="nodate">Ohne Datum</option>
-    <option value="loc-Vorratsschrank">Vorratsschrank</option>
-    <option value="loc-Kuehlschrank">Kuehlschrank</option>
-    <option value="loc-Keller">Keller</option>
+    <option value="all">🔍 Alle</option>
+    <option value="expiring">⚠️ Bald ablaufend</option>
+    <option value="expired">❌ Abgelaufen</option>
+    <option value="nodate">❓ Ohne Datum</option>
+    <option value="loc-Vorratsschrank">🗄️ Vorratsschrank</option>
+    <option value="loc-Kuehlschrank">🧊 Kuehlschrank</option>
+    <option value="loc-Keller">🏚️ Keller</option>
+    <option value="loc-Gefrierschrank">🧊 Gefrierschrank</option>
   </select>
   <select id="sort-select" onchange="currentSort=this.value;renderInventoryList()">
-    <option value="expiry">Ablaufdatum</option>
-    <option value="name">Name A-Z</option>
-    <option value="name-desc">Name Z-A</option>
-    <option value="added">Zuletzt hinzugefuegt</option>
-    <option value="location">Lagerort</option>
+    <option value="expiry">🕐 Ablaufdatum</option>
+    <option value="name">🔤 Name A-Z</option>
+    <option value="name-desc">🔤 Name Z-A</option>
+    <option value="added">🆕 Zuletzt hinzugefuegt</option>
+    <option value="location">📍 Lagerort</option>
   </select>
   <select id="view-select" onchange="currentView=this.value;renderInventoryList()">
-    <option value="full">Komplett</option>
-    <option value="compact">Kompakt</option>
+    <option value="full">📋 Komplett</option>
+    <option value="compact">📄 Kompakt</option>
   </select>
 </div>
 
@@ -233,10 +234,14 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
     <div class="field"><label>Lagerort</label><select id="f-location">
       <option value="Vorratsschrank">Vorratsschrank</option>
       <option value="Kuehlschrank">Kuehlschrank</option>
+      <option value="Gefrierschrank">Gefrierschrank</option>
       <option value="Keller">Keller</option>
     </select></div>
     <div class="field"><label>Notiz</label><textarea id="f-note" rows="2"></textarea></div>
-    <div class="field"><label>Bild-URL</label><input type="url" id="f-image" placeholder="https://..."></div>
+    <div class="field" id="f-image-field" style="display:none;text-align:center">
+      <img id="f-image-preview" src="" alt="Produktbild" style="max-width:120px;max-height:120px;border-radius:8px;object-fit:contain">
+    </div>
+    <input type="hidden" id="f-image">
     <div class="modal-actions">
       <button class="btn-outline" onclick="closeModal('product-modal')">Abbrechen</button>
       <button class="btn-primary" onclick="saveProduct()">Speichern</button>
@@ -502,7 +507,17 @@ function openProductForm(data) {
   document.getElementById('f-expiry').value = (data && data.expiry) || '';
   document.getElementById('f-location').value = (data && data.location) || lastLocation;
   document.getElementById('f-note').value = (data && data.note) || '';
-  document.getElementById('f-image').value = (data && data.image) || '';
+  const imgUrl = (data && data.image) || '';
+  document.getElementById('f-image').value = imgUrl;
+  const imgField = document.getElementById('f-image-field');
+  const imgPreview = document.getElementById('f-image-preview');
+  if (imgUrl) {
+    imgPreview.src = imgUrl;
+    imgField.style.display = '';
+  } else {
+    imgField.style.display = 'none';
+    imgPreview.src = '';
+  }
   openModal('product-modal');
 }
 
@@ -640,7 +655,11 @@ async function lookupBarcode() {
     if (result.name) document.getElementById('f-name').value = result.name;
     if (result.brand) document.getElementById('f-brand').value = result.brand;
     if (result.category) document.getElementById('f-category').value = result.category;
-    if (result.image) document.getElementById('f-image').value = result.image;
+    if (result.image) {
+      document.getElementById('f-image').value = result.image;
+      document.getElementById('f-image-preview').src = result.image;
+      document.getElementById('f-image-field').style.display = '';
+    }
     toast('Produktdaten uebernommen!', 'success');
   } else {
     toast('Kein Treffer - bitte manuell eingeben', 'info');
@@ -783,11 +802,11 @@ function exportJson() {
 
 function exportCsv() {
   if (inventory.length === 0) { toast('Keine Daten zum Exportieren', 'error'); return; }
-  const headers = ['ID','Barcode','Produktname','Marke','Menge','Einheit',
-    'Haltbarkeitsdatum','Lagerort','Notiz','Bild-URL','Erfasst am','Geaendert am'];
+  const headers = ['Produktname','Marke','Menge','Einheit',
+    'Haltbarkeitsdatum','Lagerort','Notiz','Erfasst am','Geaendert am'];
   const rows = inventory.map(i => [
-    i.id, i.barcode, i.name, i.brand, i.quantity, i.unit,
-    i.expiry, i.location, i.note, i.image, i.createdAt, i.updatedAt
+    i.name, i.brand, i.quantity, i.unit,
+    i.expiry, i.location, i.note, i.createdAt, i.updatedAt
   ].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(';'));
   const csv = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
