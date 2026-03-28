@@ -357,16 +357,23 @@ function getExpiryStatus(dateStr) {
   if (isNaN(exp.getTime())) return 'no-date';
   const diff = (exp - today) / 86400000;
   if (diff < 0) return 'expired';
-  if (diff <= 7) return 'expiring';
+  if (diff <= 60) return 'expiring';
   return 'ok';
 }
 
+function expiryDays(dateStr) {
+  if (!dateStr) return 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exp = new Date(dateStr + 'T00:00:00');
+  return Math.round((exp - today) / 86400000);
+}
+
 function expiryLabel(status, dateStr) {
-  const d = dateStr ? formatDate(dateStr) : '';
+  const days = expiryDays(dateStr);
   switch(status) {
-    case 'expired': return `<span class="badge badge-danger">Abgelaufen ${d}</span>`;
-    case 'expiring': return `<span class="badge badge-warn">Bald ablaufend ${d}</span>`;
-    case 'ok': return `<span class="badge badge-success">OK ${d}</span>`;
+    case 'expired': return `<span class="badge badge-danger">seit ${formatDate(dateStr)}</span>`;
+    case 'expiring': return `<span class="badge badge-warn">läuft in ${days} T. ab</span>`;
+    case 'ok': return `<span class="badge badge-success">OK ${formatDate(dateStr)}</span>`;
     default: return `<span class="badge badge-muted">Kein Datum</span>`;
   }
 }
@@ -431,7 +438,7 @@ function renderInventoryList() {
         <div class="card-body" onclick="openEditForm('${item.id}')" style="cursor:pointer">
           <div class="card-info">
             <span class="card-name">${esc(item.name)}</span>
-            <span class="badge badge-muted">${esc(String(item.quantity))} ${esc(item.unit)}</span>
+            <span class="badge badge-muted">${esc(String(item.quantity))} ${esc(item.unit==='Stueck'?'Stk.':item.unit)}</span>
             ${expiryLabel(status, item.expiry)}
           </div>
         </div>
@@ -453,7 +460,7 @@ function renderInventoryList() {
             ${item.brand ? `<span class="card-brand">${esc(item.brand)}</span>` : ''}
           </div>
           <div class="card-row2">
-            <span class="badge badge-muted">${esc(String(item.quantity))} ${esc(item.unit)}</span>
+            <span class="badge badge-muted">${esc(String(item.quantity))} ${esc(item.unit==='Stueck'?'Stk.':item.unit)}</span>
             ${expiryLabel(status, item.expiry)}
             ${item.location ? `<span class="card-loc">📍${esc(item.location)}</span>` : ''}
           </div>
