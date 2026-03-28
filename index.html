@@ -153,7 +153,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 <body>
 
 <div class="header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
-  <h1 style="font-size:1.1rem">Haushaltslager V1.2 <span id="item-count"></span></h1>
+  <h1 style="font-size:1.1rem">Haushaltslager V1.3 <span id="item-count"></span></h1>
   <button style="margin:0;padding:4px 28px;background:#fff;color:var(--primary);border:none;border-radius:8px;display:flex;align-items:center" onclick="startScanner()"><svg width="28" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3h3M3 3v3M21 3h-3M21 3v3M3 21h3M3 21v-3M21 21h-3M21 21v-3"/><path stroke-width="2.5" d="M7 7v10M10 7v10M14 7v10M17 7v10"/></svg></button>
 </div>
 
@@ -165,8 +165,9 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 </div>
 <input type="file" id="import-input" accept=".json" onchange="importJsonFile(event)">
 
-<div class="search-bar">
-  <input type="search" id="search-input" placeholder="Suchen..." oninput="renderInventoryList()">
+<div class="search-bar" style="position:relative">
+  <input type="search" id="search-input" placeholder="Suchen..." oninput="renderInventoryList();toggleSearchClear()" style="padding-right:36px">
+  <button id="search-clear" onclick="document.getElementById('search-input').value='';toggleSearchClear();renderInventoryList()" style="display:none;position:absolute;right:20px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;font-size:1.1rem;color:var(--muted);line-height:1">✕</button>
 </div>
 
 <div class="control-bar">
@@ -235,7 +236,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
       </div>
     </div>
     <div class="modal-actions" style="margin-top:12px;margin-bottom:14px">
-      <button class="btn-outline" onclick="closeModal('product-modal')">Abbrechen</button>
+      <button class="btn-danger" onclick="closeModal('product-modal')">Abbrechen</button>
       <button class="btn-primary" onclick="saveProduct()">Speichern</button>
     </div>
     <div class="field"><label>Lagerort</label><select id="f-location">
@@ -333,6 +334,11 @@ function genId() {
 }
 
 /* ── Toast ── */
+function toggleSearchClear() {
+  const v = document.getElementById('search-input').value;
+  document.getElementById('search-clear').style.display = v ? '' : 'none';
+}
+
 function toast(msg, type='info') {
   const c = document.getElementById('toast-container');
   const t = document.createElement('div');
