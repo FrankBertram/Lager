@@ -46,14 +46,12 @@ background:#fff;border-bottom:1px solid var(--border)}
 .btn-outline:hover{background:var(--bg)}
 .btn-sm{padding:8px 12px;font-size:.8rem;border-radius:8px}
 
-/* Search & Filter */
+/* Search & Controls */
 .search-bar{padding:10px 12px;background:#fff}
 .search-bar input{border-radius:20px;padding-left:16px}
-.filter-bar{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-background:#fff;border-bottom:1px solid var(--border)}
-.filter-btn{white-space:nowrap;padding:8px 14px;border-radius:20px;font-size:.82rem;
-font-weight:600;background:var(--bg);color:var(--muted);border:none;flex-shrink:0}
-.filter-btn.active{background:var(--primary);color:#fff}
+.control-bar{display:flex;gap:4px;padding:6px 8px;background:#fff;border-bottom:1px solid var(--border)}
+.control-bar select{flex:1;padding:7px 4px;font-size:.78rem;font-weight:600;
+border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text)}
 
 /* Cards – compact row layout */
 .inventory-list{padding:8px;display:flex;flex-direction:column;gap:4px;padding-bottom:40px}
@@ -79,6 +77,17 @@ gap:0;min-height:0}
 .card-loc{font-size:.72rem;color:var(--muted);white-space:nowrap}
 .card-actions{display:flex;flex-direction:row;gap:4px;padding:6px 8px;flex-shrink:0}
 .card-actions button{font-size:.9rem;padding:8px 14px;border-radius:8px;white-space:nowrap}
+
+/* Compact view */
+.card.compact{border-radius:4px;border-left-width:3px;gap:0;min-height:0}
+.card.compact .card-body{padding:4px 4px 4px 8px;gap:4px}
+.card.compact .card-info{display:flex;align-items:center;gap:6px}
+.card.compact .card-row1,.card.compact .card-row2{display:contents}
+.card.compact .card-brand,.card.compact .card-loc,.card.compact .card-thumb{display:none}
+.card.compact .card-name{font-size:.78rem}
+.card.compact .badge{font-size:.68rem;padding:0 4px}
+.card.compact .card-actions{padding:2px 4px;gap:2px}
+.card.compact .card-actions button{font-size:.7rem;padding:4px 8px;border-radius:5px}
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
@@ -158,13 +167,28 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
   <input type="search" id="search-input" placeholder="Suchen..." oninput="renderInventoryList()">
 </div>
 
-<div class="filter-bar" id="filter-bar">
-  <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">Alle</button>
-  <button class="filter-btn" data-filter="expiring" onclick="setFilter('expiring',this)">Bald ablaufend</button>
-  <button class="filter-btn" data-filter="expired" onclick="setFilter('expired',this)">Abgelaufen</button>
-  <button class="filter-btn" data-filter="nodate" onclick="setFilter('nodate',this)">Ohne Datum</button>
+<div class="control-bar">
+  <select id="filter-select" onchange="currentFilter=this.value;renderInventoryList()">
+    <option value="all">Alle</option>
+    <option value="expiring">Bald ablaufend</option>
+    <option value="expired">Abgelaufen</option>
+    <option value="nodate">Ohne Datum</option>
+    <option value="loc-Vorratsschrank">Vorratsschrank</option>
+    <option value="loc-Kuehlschrank">Kuehlschrank</option>
+    <option value="loc-Keller">Keller</option>
+  </select>
+  <select id="sort-select" onchange="currentSort=this.value;renderInventoryList()">
+    <option value="expiry">Ablaufdatum</option>
+    <option value="name">Name A-Z</option>
+    <option value="name-desc">Name Z-A</option>
+    <option value="added">Zuletzt hinzugefuegt</option>
+    <option value="location">Lagerort</option>
+  </select>
+  <select id="view-select" onchange="currentView=this.value;renderInventoryList()">
+    <option value="full">Komplett</option>
+    <option value="compact">Kompakt</option>
+  </select>
 </div>
-<div class="filter-bar" id="location-filter-bar"></div>
 
 <div class="inventory-list" id="inventory-list"></div>
 
@@ -262,6 +286,8 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 /* ── State ── */
 let inventory = [];
 let currentFilter = 'all';
+let currentSort = 'expiry';
+let currentView = 'full';
 let currentLocationFilter = '';
 let editingId = null;
 let qtyEditId = null;
@@ -338,21 +364,7 @@ function formatDate(ds) {
   return ds;
 }
 
-/* ── Filter ── */
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('#filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderInventoryList();
-}
-
-function setLocationFilter(loc, btn) {
-  currentLocationFilter = (currentLocationFilter === loc) ? '' : loc;
-  document.querySelectorAll('#location-filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
-  if (currentLocationFilter && btn) btn.classList.add('active');
-  renderInventoryList(true);
-}
-
+/* ── Filter & Sort ── */
 function filterInventory() {
   let items = [...inventory];
   const q = document.getElementById('search-input').value.toLowerCase().trim();
@@ -364,37 +376,64 @@ function filterInventory() {
       (i.location||'').toLowerCase().includes(q)
     );
   }
-  switch(currentFilter) {
-    case 'expiring': items = items.filter(i => getExpiryStatus(i.expiry)==='expiring'); break;
-    case 'expired': items = items.filter(i => getExpiryStatus(i.expiry)==='expired'); break;
-    case 'nodate': items = items.filter(i => getExpiryStatus(i.expiry)==='no-date'); break;
+  const f = currentFilter;
+  if (f.startsWith('loc-')) {
+    items = items.filter(i => (i.location||'') === f.slice(4));
+  } else {
+    switch(f) {
+      case 'expiring': items = items.filter(i => getExpiryStatus(i.expiry)==='expiring'); break;
+      case 'expired': items = items.filter(i => getExpiryStatus(i.expiry)==='expired'); break;
+      case 'nodate': items = items.filter(i => getExpiryStatus(i.expiry)==='no-date'); break;
+    }
   }
-  if (currentLocationFilter) {
-    items = items.filter(i => (i.location||'') === currentLocationFilter);
+  switch(currentSort) {
+    case 'expiry':
+      items.sort((a,b) => {
+        const sa = getExpiryStatus(a.expiry), sb = getExpiryStatus(b.expiry);
+        const order = {expired:0,expiring:1,'no-date':2,ok:3};
+        const d = (order[sa]??9) - (order[sb]??9);
+        if (d !== 0) return d;
+        return (a.expiry||'9').localeCompare(b.expiry||'9');
+      }); break;
+    case 'name': items.sort((a,b) => (a.name||'').localeCompare(b.name||'')); break;
+    case 'name-desc': items.sort((a,b) => (b.name||'').localeCompare(a.name||'')); break;
+    case 'added': items.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')); break;
+    case 'location': items.sort((a,b) => (a.location||'').localeCompare(b.location||'')); break;
   }
-  items.sort((a,b) => {
-    const sa = getExpiryStatus(a.expiry), sb = getExpiryStatus(b.expiry);
-    const order = {expired:0,expiring:1,'no-date':2,ok:3};
-    return (order[sa]??9) - (order[sb]??9);
-  });
   return items;
 }
 
 /* ── Render ── */
-function renderInventoryList(skipLocBar) {
-  if (!skipLocBar) renderLocationBar();
+function renderInventoryList() {
   const list = document.getElementById('inventory-list');
   const items = filterInventory();
   if (items.length === 0) {
     list.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>Keine Produkte gefunden.</p></div>';
     return;
   }
+  const isCompact = currentView === 'compact';
   list.innerHTML = items.map(item => {
     const status = getExpiryStatus(item.expiry);
+    const cls = isCompact ? `card compact ${status}` : `card ${status}`;
+    if (isCompact) {
+      return `<div class="${cls}">
+        <div class="card-body">
+          <div class="card-info">
+            <span class="card-name">${esc(item.name)}</span>
+            <span class="badge badge-muted">${esc(String(item.quantity))} ${esc(item.unit)}</span>
+            ${expiryLabel(status, item.expiry)}
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-primary btn-sm" onclick="openQtyModal('${item.id}')">±</button>
+          <button class="btn-outline btn-sm" onclick="openEditForm('${item.id}')">✎</button>
+        </div>
+      </div>`;
+    }
     const thumb = item.image
       ? `<img class="card-thumb" src="${esc(item.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`
       : '';
-    return `<div class="card ${status}">
+    return `<div class="${cls}">
       <div class="card-body">
         ${thumb}
         <div class="card-info">
@@ -417,15 +456,6 @@ function renderInventoryList(skipLocBar) {
   }).join('');
 }
 
-function renderLocationBar() {
-  const locs = [...new Set(inventory.map(i => i.location).filter(Boolean))].sort();
-  const bar = document.getElementById('location-filter-bar');
-  if (locs.length === 0) { bar.innerHTML = ''; return; }
-  bar.innerHTML = locs.map(l =>
-    `<button class="filter-btn${currentLocationFilter===l?' active':''}"
-      onclick="setLocationFilter('${esc(l)}',this)">📍 ${esc(l)}</button>`
-  ).join('');
-}
 
 function esc(s) {
   const d = document.createElement('div');
