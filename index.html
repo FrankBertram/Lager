@@ -182,7 +182,8 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
     <option value="expiry">🕐 Ablaufdatum</option>
     <option value="name">🔤 Name A-Z</option>
     <option value="name-desc">🔤 Name Z-A</option>
-    <option value="added">🆕 Zuletzt hinzugefuegt</option>
+    <option value="added-desc">📅 Erfassung neueste zuerst</option>
+    <option value="added-asc">📅 Erfassung aelteste zuerst</option>
     <option value="location">📍 Lagerort</option>
   </select>
   <select id="view-select" onchange="currentView=this.value;renderInventoryList()">
@@ -402,7 +403,8 @@ function filterInventory() {
       }); break;
     case 'name': items.sort((a,b) => (a.name||'').localeCompare(b.name||'')); break;
     case 'name-desc': items.sort((a,b) => (b.name||'').localeCompare(a.name||'')); break;
-    case 'added': items.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')); break;
+    case 'added-desc': items.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')); break;
+    case 'added-asc': items.sort((a,b) => (a.createdAt||'').localeCompare(b.createdAt||'')); break;
     case 'location': items.sort((a,b) => (a.location||'').localeCompare(b.location||'')); break;
   }
   return items;
