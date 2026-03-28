@@ -77,8 +77,8 @@ gap:0;min-height:0}
 .badge-success{background:#dcfce7;color:var(--success)}
 .badge-muted{background:var(--bg);color:var(--muted)}
 .card-loc{font-size:.72rem;color:var(--muted);white-space:nowrap}
-.card-actions{display:flex;flex-direction:column;gap:2px;padding:4px 6px;flex-shrink:0}
-.card-actions button{font-size:.7rem;padding:5px 8px;border-radius:6px;white-space:nowrap}
+.card-actions{display:flex;flex-direction:row;gap:3px;padding:4px 6px;flex-shrink:0}
+.card-actions button{font-size:.75rem;padding:6px 10px;border-radius:6px;white-space:nowrap}
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
@@ -181,7 +181,10 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 <!-- Product Form Modal -->
 <div class="modal-overlay" id="product-modal">
   <div class="modal">
-    <h2 id="form-title">Produkt anlegen</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 id="form-title" style="margin:0">Produkt anlegen</h2>
+      <button class="btn-primary btn-sm" onclick="saveProduct()">Speichern</button>
+    </div>
     <input type="hidden" id="f-id">
     <div class="field"><label>Barcode</label>
       <div style="display:flex;gap:8px"><input type="text" id="f-barcode" placeholder="EAN...">
@@ -403,9 +406,8 @@ function renderInventoryList(skipLocBar) {
         </div>
       </div>
       <div class="card-actions">
-        <button class="btn-outline btn-sm" onclick="openEditForm('${item.id}')">✎</button>
         <button class="btn-primary btn-sm" onclick="openQtyModal('${item.id}')">±</button>
-        <button class="btn-danger btn-sm" onclick="deleteProduct('${item.id}')">✕</button>
+        <button class="btn-outline btn-sm" onclick="openEditForm('${item.id}')">✎</button>
       </div>
     </div>`;
   }).join('');
@@ -544,6 +546,14 @@ function setQtyFromInput() {
 function updateQuantity(id, newQty) {
   const item = inventory.find(i => i.id === id);
   if (!item) return;
+  if (newQty <= 0) {
+    if (!confirm(`"${item.name}" entfernen (Menge = 0)?`)) return;
+    inventory = inventory.filter(i => i.id !== id);
+    saveToLocalStorage();
+    renderInventoryList();
+    toast('Artikel entfernt', 'info');
+    return;
+  }
   item.quantity = newQty;
   item.updatedAt = new Date().toISOString();
   saveToLocalStorage();
