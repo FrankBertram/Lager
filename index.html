@@ -832,6 +832,7 @@ function exportCsv() {
 function importJsonFile(event) {
   const file = event.target.files[0];
   if (!file) return;
+  if (!confirm(`"${file.name}" importieren? Vorhandene Eintraege mit gleicher ID werden ueberschrieben.`)) { event.target.value = ''; return; }
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
