@@ -70,7 +70,7 @@ background:#fff;border-bottom:1px solid var(--border)}
 .search-bar{padding:10px 12px;background:#fff}
 .search-bar input{border-radius:20px;padding-left:16px}
 .control-bar{display:flex;gap:4px;padding:6px 8px;background:#fff;border-bottom:1px solid var(--border)}
-.control-bar select{flex:1;padding:7px 4px;font-size:.78rem;font-weight:600;
+.control-bar select,.control-bar button.view-toggle{flex:1;padding:7px 4px;font-size:.78rem;font-weight:600;
 border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text)}
 
 /* Cards – compact row layout */
@@ -164,17 +164,17 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 #import-input{display:none}
 
 @media(min-width:500px){
-  .inventory-list,.toolbar,.search-bar,.control-bar{max-width:700px;margin:0 auto}
+  .inventory-list,.toolbar,.sync-toolbar,.search-bar,.control-bar{max-width:700px;margin:0 auto}
 }
 @media(min-width:800px){
-  .inventory-list,.toolbar,.search-bar,.control-bar{max-width:900px;margin:0 auto}
+  .inventory-list,.toolbar,.sync-toolbar,.search-bar,.control-bar{max-width:900px;margin:0 auto}
 }
 </style>
 </head>
 <body>
 
 <div class="header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
-  <h1 style="font-size:1.1rem">Haushaltslager <span id="version-tap" onclick="tapVersion()" style="cursor:pointer">V1.54</span> <span id="item-count"></span></h1>
+  <h1 style="font-size:1.1rem">Haushaltslager <span id="version-tap" onclick="tapVersion()" style="cursor:pointer">V1.55</span> <span id="item-count"></span></h1>
   <button style="margin:0;padding:6px 32px;background:#fff;color:var(--primary);border:none;border-radius:8px;display:flex;align-items:center" onclick="startScanner()"><svg width="36" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3h3M3 3v3M21 3h-3M21 3v3M3 21h3M3 21v-3M21 21h-3M21 21v-3"/><path stroke-width="2.5" d="M7 7v10M10 7v10M14 7v10M17 7v10"/></svg></button>
 </div>
 
@@ -194,7 +194,8 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 </div>
 
 <div class="search-bar" style="position:relative">
-  <input type="search" id="search-input" placeholder="Suchen..." oninput="renderInventoryList();toggleSearchClear()" style="padding-right:36px">
+  <button id="search-scan" onclick="startScanner('search')" title="Per Barcode suchen" style="position:absolute;left:22px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;color:var(--primary);line-height:0;z-index:1"><svg width="22" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3h3M3 3v3M21 3h-3M21 3v3M3 21h3M3 21v-3M21 21h-3M21 21v-3"/><path stroke-width="2.5" d="M7 7v10M10 7v10M14 7v10M17 7v10"/></svg></button>
+  <input type="search" id="search-input" placeholder="Suchen..." oninput="renderInventoryList();toggleSearchClear()" style="padding-left:46px;padding-right:36px">
   <button id="search-clear" onclick="document.getElementById('search-input').value='';toggleSearchClear();renderInventoryList()" style="display:none;position:absolute;right:20px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;font-size:1.1rem;color:var(--muted);line-height:1">✕</button>
 </div>
 
@@ -218,10 +219,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
     <option value="added-asc">📅 Erfassung aelteste zuerst</option>
     <option value="location">📍 Lagerort</option>
   </select>
-  <select id="view-select" onchange="currentView=this.value;renderInventoryList()">
-    <option value="full">📋 Komplett</option>
-    <option value="compact">📄 Kompakt</option>
-  </select>
+  <button id="view-toggle" class="view-toggle" onclick="toggleView()">📋 Detailansicht</button>
 </div>
 
 <div class="inventory-list" id="inventory-list"></div>
@@ -324,6 +322,21 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
   </div>
 </div>
 
+<div class="modal-overlay" id="unlock-modal">
+  <div class="modal" style="text-align:center">
+    <h2>Freischalt-Code</h2>
+    <div class="field" style="margin-top:8px">
+      <input type="password" id="unlock-input" autocomplete="off" autocapitalize="off" autocorrect="off"
+        inputmode="text" style="text-align:center;font-size:1.2rem;letter-spacing:.3em"
+        onkeydown="if(event.key==='Enter')checkUnlockCode()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" onclick="closeModal('unlock-modal')">Abbrechen</button>
+      <button class="btn-primary" onclick="checkUnlockCode()">OK</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toast-container"></div>
 
 <script>
@@ -339,6 +352,7 @@ let qtyTemp = 1;
 let duplicateBarcode = '';
 let duplicateExistingId = '';
 let scannerRunning = false;
+let scannerSearchMode = false;
 let lastLocation = 'Vorratsschrank';
 
 const LS_KEY = 'haushalts_lager_v1';
@@ -424,9 +438,16 @@ function formatDate(ds) {
 /* ── Filter & Sort ── */
 function filterInventory() {
   let items = [...inventory];
-  const q = document.getElementById('search-input').value.toLowerCase().trim();
-  if (q) {
-    items = items.filter(i => (i.name||'').toLowerCase().includes(q));
+  const raw = document.getElementById('search-input').value.trim();
+  const SCAN_PREFIX = '📷 ';
+  if (raw.startsWith(SCAN_PREFIX)) {
+    const bc = raw.slice(SCAN_PREFIX.length).trim();
+    items = items.filter(i => (i.barcode||'') === bc);
+  } else {
+    const q = raw.toLowerCase();
+    if (q) {
+      items = items.filter(i => (i.name||'').toLowerCase().includes(q));
+    }
   }
   const f = currentFilter;
   if (f.startsWith('loc-')) {
@@ -741,10 +762,13 @@ async function lookupBarcode() {
 }
 
 /* ── Scanner ── */
-function startScanner() {
+function startScanner(mode) {
+  scannerSearchMode = (mode === 'search');
   const container = document.getElementById('scanner-container');
   container.classList.add('active');
-  document.getElementById('scan-status').textContent = 'Barcode vor die Kamera halten...';
+  document.getElementById('scan-status').textContent = scannerSearchMode
+    ? 'Barcode zum Suchen vor die Kamera halten...'
+    : 'Barcode vor die Kamera halten...';
   scannerRunning = true;
 
   Quagga.init({
@@ -799,14 +823,20 @@ function startScanner() {
     if (codeCount >= 3) {
       scannerRunning = false;
       document.getElementById('scan-status').textContent = 'Erkannt: ' + code;
+      const wasSearch = scannerSearchMode;
       stopScanner();
-      handleScannedBarcode(code);
+      if (wasSearch) {
+        handleSearchScanned(code);
+      } else {
+        handleScannedBarcode(code);
+      }
     }
   });
 }
 
 function stopScanner() {
   scannerRunning = false;
+  scannerSearchMode = false;
   try { Quagga.stop(); } catch(e) {}
   try { Quagga.offDetected(); } catch(e) {}
   const container = document.getElementById('scanner-container');
@@ -822,6 +852,19 @@ function stopScanner() {
   });
   const canvases = viewport.querySelectorAll('canvas');
   canvases.forEach(c => c.remove());
+}
+
+function handleSearchScanned(code) {
+  const input = document.getElementById('search-input');
+  input.value = '📷 ' + code;
+  toggleSearchClear();
+  renderInventoryList();
+  const matches = inventory.filter(i => (i.barcode||'') === code);
+  if (matches.length === 0) {
+    toast(`Barcode ${code} nicht im Lager`, 'info');
+  } else {
+    toast(`${matches.length} Treffer fuer ${code}`, 'success');
+  }
 }
 
 async function handleScannedBarcode(barcode) {
@@ -950,8 +993,14 @@ function dateStamp() {
   return new Date().toISOString().slice(0,10).replace(/-/g,'');
 }
 
+function toggleView() {
+  currentView = currentView === 'full' ? 'compact' : 'full';
+  document.getElementById('view-toggle').textContent = currentView === 'full' ? '📋 Detailansicht' : '📄 Kompaktansicht';
+  renderInventoryList();
+}
+
 /* ── Cloud Sync (versteckt) ── */
-const SYNC_UNLOCK_CODE = '1234';
+const SYNC_UNLOCK_CODE = 'skat';
 const SYNC_UNLOCK_KEY = 'sync_unlocked';
 const HOUSEHOLD_CODE_KEY = 'household_code';
 let versionTaps = 0;
@@ -971,14 +1020,25 @@ function tapVersion() {
       }
       return;
     }
-    const code = prompt('Freischalt-Code:');
-    if (code === SYNC_UNLOCK_CODE) {
-      localStorage.setItem(SYNC_UNLOCK_KEY, '1');
-      applySyncUnlock();
-      toast('Cloud-Sync freigeschaltet', 'success');
-    } else if (code !== null) {
-      toast('Falscher Code', 'error');
-    }
+    const input = document.getElementById('unlock-input');
+    input.value = '';
+    openModal('unlock-modal');
+    setTimeout(() => input.focus(), 150);
+  }
+}
+
+function checkUnlockCode() {
+  const input = document.getElementById('unlock-input');
+  const val = (input.value || '').trim().toLowerCase();
+  if (val === SYNC_UNLOCK_CODE) {
+    localStorage.setItem(SYNC_UNLOCK_KEY, '1');
+    closeModal('unlock-modal');
+    input.value = '';
+    applySyncUnlock();
+    toast('Cloud-Sync freigeschaltet', 'success');
+  } else {
+    input.value = '';
+    toast('Falscher Code', 'error');
   }
 }
 
