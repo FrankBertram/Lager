@@ -174,7 +174,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
 <body>
 
 <div class="header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
-  <h1 style="font-size:1.1rem">Haushaltslager <span id="version-tap" onclick="tapVersion()" style="cursor:pointer">V1.55</span> <span id="item-count"></span></h1>
+  <h1 style="font-size:1.1rem">Haushaltslager <span id="version-tap" onclick="tapVersion()" style="cursor:pointer">V1.56</span> <span id="item-count"></span></h1>
   <button style="margin:0;padding:6px 32px;background:#fff;color:var(--primary);border:none;border-radius:8px;display:flex;align-items:center" onclick="startScanner()"><svg width="36" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3h3M3 3v3M21 3h-3M21 3v3M3 21h3M3 21v-3M21 21h-3M21 21v-3"/><path stroke-width="2.5" d="M7 7v10M10 7v10M14 7v10M17 7v10"/></svg></button>
 </div>
 
@@ -204,12 +204,14 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
     <option value="all">🔍 Alle</option>
     <option value="expiring">⚠️ Bald ablaufend</option>
     <option value="expired">❌ Abgelaufen</option>
+    <option value="expired14">❌ Abgelaufen (14 Tage)</option>
     <option value="nodate">❓ Ohne Datum</option>
     <option value="opened">📦 Angebrochen</option>
     <option value="loc-Vorratsschrank">🗄️ Vorratsschrank</option>
     <option value="loc-Kuehlschrank">🧊 Kuehlschrank</option>
     <option value="loc-Keller">🏚️ Keller</option>
     <option value="loc-Gefrierschrank">🧊 Gefrierschrank</option>
+    <option value="loc-Drogerieschrank">🧴 Drogerieschrank</option>
   </select>
   <select id="sort-select" onchange="currentSort=this.value;renderInventoryList()">
     <option value="expiry">🕐 Ablaufdatum</option>
@@ -277,6 +279,7 @@ background:var(--primary);color:#fff;display:flex;align-items:center;justify-con
       <option value="Kuehlschrank">Kuehlschrank</option>
       <option value="Gefrierschrank">Gefrierschrank</option>
       <option value="Keller">Keller</option>
+      <option value="Drogerieschrank">Drogerieschrank</option>
     </select></div>
     <div class="field"><label>Notiz</label><textarea id="f-note" rows="2"></textarea></div>
     <div class="field" id="f-image-field" style="display:none;text-align:center">
@@ -456,6 +459,10 @@ function filterInventory() {
     switch(f) {
       case 'expiring': items = items.filter(i => getExpiryStatus(i.expiry)==='expiring'); break;
       case 'expired': items = items.filter(i => getExpiryStatus(i.expiry)==='expired'); break;
+      case 'expired14': items = items.filter(i => {
+        const d = expiryDays(i.expiry);
+        return i.expiry && d < 0 && d >= -14;
+      }); break;
       case 'nodate': items = items.filter(i => getExpiryStatus(i.expiry)==='no-date'); break;
       case 'opened': items = items.filter(i => (i.fill != null && i.fill < 100)); break;
     }
